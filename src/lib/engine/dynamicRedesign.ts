@@ -177,8 +177,38 @@ Return a JSON object conforming to:
         targetedDriver: topDrivers[2]?.reason || "Weight",
       }
     );
+  } else if (schema.category === "general_commerce") {
+    newTitle = `${merchantProduct.title} (Enhanced Value Edition)`;
+    newAttributes.build_quality = 0.90;
+    newAttributes.design_aesthetic = 0.88;
+    newAttributes.usability = 0.92;
+    newPrice = Math.max(15, Math.round(merchantProduct.price * 0.88));
+
+    designChanges.push(
+      {
+        dimension: "Build Quality & Materials",
+        from: "Standard commercial specification",
+        to: "Reinforced composite chassis with premium tactile finish (0.90 durability index)",
+        rationale: "Overcomes build quality friction and perceived wear-and-tear objections seen in shopper traces.",
+        targetedDriver: topDrivers[0]?.reason || "Build Quality",
+      },
+      {
+        dimension: "Retail Price & Commercial Value",
+        from: `£${merchantProduct.price.toFixed(2)}`,
+        to: `£${newPrice.toFixed(2)}`,
+        rationale: "Optimizes gross margin via streamlined packaging while undercutting market alternatives.",
+        targetedDriver: topDrivers[1]?.reason || "Price",
+      },
+      {
+        dimension: "Usability & Customer Assurance",
+        from: "Standard retail packaging",
+        to: "Quick-access ergonomics + Extended 2-Year Direct Warranty",
+        rationale: "Eliminates buyer hesitation and post-purchase anxiety, reclaiming defectors.",
+        targetedDriver: topDrivers[2]?.reason || "Usability",
+      }
+    );
   } else {
-    // Outerwear / Apparel / Default
+    // Outerwear / Apparel / Jackets
     newTitle = "Brown Oversized Vintage Motorsport Jacket";
     newAttributes.silhouette = "oversized_boxy";
     newAttributes.material_quality = 0.86;

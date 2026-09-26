@@ -202,7 +202,13 @@ export function detectProductCategory(title: string, url: string = ""): string {
     text.includes("running") ||
     text.includes("sneaker") ||
     text.includes("trainer") ||
-    text.includes("marathon")
+    text.includes("marathon") ||
+    text.includes("boot") ||
+    text.includes("heel") ||
+    text.includes("chelsea") ||
+    text.includes("loafer") ||
+    text.includes("sandal") ||
+    text.includes("footwear")
   ) {
     return "running_shoes";
   }
@@ -477,7 +483,61 @@ export async function discoverCompetitors(
     ];
   }
 
-  // Default: Outerwear / Apparel
+  // General Consumer Goods & Lifestyle Competitors
+  if (cat === "general_commerce") {
+    return [
+      {
+        id: "comp_gen_1",
+        title: "Category Benchmark Leader Pro",
+        brand: "Market Leader",
+        category: "general_commerce",
+        price: Math.round(merchantProduct.price * 1.15),
+        currency: "GBP",
+        attributes: {
+          build_quality: 0.88,
+          price: Math.round(merchantProduct.price * 1.15),
+          design_aesthetic: 0.85,
+          usability: 0.86,
+        },
+        imageUrl: "/assets/jacket_original.png",
+        sourceUrl: merchantProduct.sourceUrl,
+      },
+      {
+        id: "comp_gen_2",
+        title: "Amazon Choice Direct Challenger",
+        brand: "Top Rated Alternative",
+        category: "general_commerce",
+        price: Math.round(merchantProduct.price * 0.95),
+        currency: "GBP",
+        attributes: {
+          build_quality: 0.80,
+          price: Math.round(merchantProduct.price * 0.95),
+          design_aesthetic: 0.82,
+          usability: 0.84,
+        },
+        imageUrl: "/assets/jacket_original.png",
+        sourceUrl: merchantProduct.sourceUrl,
+      },
+      {
+        id: "comp_gen_3",
+        title: "Value-Optimized Direct Brand",
+        brand: "Value Direct",
+        category: "general_commerce",
+        price: Math.round(merchantProduct.price * 0.78),
+        currency: "GBP",
+        attributes: {
+          build_quality: 0.68,
+          price: Math.round(merchantProduct.price * 0.78),
+          design_aesthetic: 0.70,
+          usability: 0.74,
+        },
+        imageUrl: "/assets/jacket_original.png",
+        sourceUrl: merchantProduct.sourceUrl,
+      },
+    ];
+  }
+
+  // Outerwear / Apparel Competitors
   return [
     {
       id: "comp_moto_a",

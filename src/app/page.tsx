@@ -244,8 +244,10 @@ export default function Home() {
               />
             )}
 
-            {/* Stage 5: CORTEX Independent Neural Visual Signal */}
-            {cortexData && <CortexSignalCard cortexData={cortexData} />}
+            {/* Stage 5: CORTEX Independent Neural Visual Signal (Visual Cortex benchmark for apparel) */}
+            {cortexData && (commerceProduct?.category === "outerwear" || extractedSKU.title.toLowerCase().includes("jacket")) && (
+              <CortexSignalCard cortexData={cortexData} />
+            )}
 
             {/* Stage 6: Parallel Market Validation (Held-Out Agents) */}
             {counterfactualResult && (
@@ -269,7 +271,7 @@ export default function Home() {
       <ShopifyDeployModal
         isOpen={isShopifyModalOpen}
         onClose={() => setIsShopifyModalOpen(false)}
-        defaultTitle={grokProposal?.redesignedSKU?.title || "Brown Oversized Vintage Motorsport Jacket"}
+        defaultTitle={grokProposal?.redesignedSKU?.title || `${extractedSKU.title} (Variant B)`}
         defaultPrice={counterfactualResult?.proposedRRP || grokProposal?.redesignedSKU?.price || 89.0}
         defaultBOM={counterfactualResult?.targetBOM || grokProposal?.targetBOM || 38.0}
         defaultBatch={counterfactualResult?.recommendedBatchSize || 100}
