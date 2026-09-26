@@ -29,8 +29,9 @@ function normalizeDimensionValue(
 
   if (typeof val === "number") {
     const numericVals = allProducts
-      .map((p) => Number(p.attributes[dimKey] ?? p.price))
-      .filter((n) => !isNaN(n));
+      .map((p) => p.attributes[dimKey])
+      .filter((v): v is number => typeof v === "number");
+    if (numericVals.length === 0) return 0.5;
     const min = Math.min(...numericVals);
     const max = Math.max(...numericVals);
     const spread = max - min || 1;
@@ -61,32 +62,31 @@ export function calculateProductUtility(
 ): { utility: number; attributeFit: number; priceFit: number; dimensionLosses: RejectionReasonEvidence[] } {
   const dimensionLosses: RejectionReasonEvidence[] = [];
 
-  // 1. Budget & Price Fit
-  // If price exceeds maxWTP, heavy penalty
-  let priceFit = 0.5;
+  // 1. Price fit against the other listings in this run, then the buyer's budget.
+  const listingPrices = allProducts.map((p) => p.price);
+  const cheapest = Math.min(...listingPrices);
+  const dearest = Math.max(...listingPrices);
+  const priceSpread = Math.max(dearest - cheapest, 1);
+  const marketScore = (dearest - product.price) / priceSpread;
+
+  let priceFit = 0.45 + 0.55 * marketScore;
   if (product.price > agent.maxWTP) {
     const penalty = (product.price - agent.maxWTP) / agent.maxWTP;
-    priceFit = Math.max(0.0, 0.4 - penalty);
+    priceFit = Math.max(0.0, priceFit * 0.35 - penalty);
     dimensionLosses.push({
       dimension: "Price & Budget Exceeded",
       desired: `≤ £${agent.budget}`,
       observed: `£${product.price}`,
       impact: round1D(-0.35 * (1 + penalty)),
     });
-  } else {
-    // Price relative to budget
-    const priceRatio = product.price / (agent.budget || product.price);
-    const rawPriceScore = Math.max(0, Math.min(1, 1.2 - priceRatio * 0.7));
-    priceFit = 1.0 - agent.priceSensitivity * (1.0 - rawPriceScore);
-
-    if (product.price > agent.budget) {
-      dimensionLosses.push({
-        dimension: "Price Sensitivity",
-        desired: `≤ £${agent.budget}`,
-        observed: `£${product.price}`,
-        impact: round1D(-0.15 * agent.priceSensitivity),
-      });
-    }
+  } else if (product.price > agent.budget) {
+    priceFit *= 0.7;
+    dimensionLosses.push({
+      dimension: "Price Sensitivity",
+      desired: `≤ £${agent.budget}`,
+      observed: `£${product.price}`,
+      impact: round1D(-0.15 * agent.priceSensitivity),
+    });
   }
 
   // 2. Attribute Fit across category decision dimensions
@@ -101,10 +101,11 @@ export function calculateProductUtility(
 
     const prodVal = product.attributes[dim.key];
     const idealVal = agent.idealValues[dim.key];
+    const everyoneHasIt = allProducts.every((p) => p.attributes[dim.key] !== undefined);
 
     let dimScore = 0.5;
 
-    if (prodVal === undefined) {
+    if (!everyoneHasIt || prodVal === undefined) {
       dimScore = 0.5;
     } else if (dim.type === "numeric") {
       dimScore = normalizeDimensionValue(dim.key, prodVal, dim.direction, allProducts);
@@ -209,6 +210,23 @@ export function runDynamicSwarmSimulation(
       if (evalRes.utility > maxUtility) {
         maxUtility = evalRes.utility;
         bestProductId = product.id;
+      }
+    }
+
+    // A small utility edge is a larger share, not every buyer.
+    if (maxUtility >= reservationThreshold && bestProductId) {
+      const temperature = 0.32;
+      const weights = allProducts.map((product) =>
+        Math.exp((productUtilities[product.id] - maxUtility) / temperature)
+      );
+      const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
+      let draw = rng() * weightTotal;
+      for (let i = 0; i < allProducts.length; i++) {
+        draw -= weights[i];
+        if (draw <= 0) {
+          bestProductId = allProducts[i].id;
+          break;
+        }
       }
     }
 
