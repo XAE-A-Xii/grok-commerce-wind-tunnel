@@ -398,6 +398,82 @@ CREATE TABLE IF NOT EXISTS product_briefs (
   - Defection breakdown to Competitor B (41 lost buyers), Competitor A (29), Competitor C (17).
 - [ ] Grok Counterfactual Engine proposes Variant B (Distressed Brown, Oversized, £89).
 - [ ] CORTEX visual signal highlights Variant B with +24% relative cortical response (84.3 vs 68.0).
-- [ ] Round 2 Swarm tests **identical 200 held-out agents** across parallel markets, **demonstrating +18pp simulated choice-share uplift (31% $\rightarrow$ 49%) in the held-out synthetic market**.
 - [ ] 1-Click **`[CREATE SHOPIFY DRAFT]`** triggers real Shopify GraphQL Admin API (`2026-07`) mutation (with graceful Supabase + preview fallback if credentials unset).
 - [ ] 1-Click "Auto-Run 3-Min Pitch" allows seamless stage demonstration in under 180 seconds.
+
+---
+
+## 9. SPEC-002: Dynamic Multi-Category Commerce Wind Tunnel Architecture
+
+### 9.1 The Core Problem & Architectural Shift
+The static jacket fixture proved the UX, but the core product promise of a true "Commerce Wind Tunnel" requires dynamic evaluation across arbitrary product categories (apparel, footwear, electronics, etc.). When a judge pastes *any public product URL*:
+1. The system must not force a jacket fixture on non-jacket products.
+2. The 200-agent simulation runs locally, fast (<3s), and deterministically seeded.
+3. In `DEMO_MODE=live` (or any dynamic URL), outcomes are not hard-coded. Merchant choice share is derived directly from the agent choices.
+4. Grok Bot creates the category ontology/schema, Tavily grounds the competitive market, the local Swarm simulates heterogeneous buyers, Grok redesigns the proposition, and a held-out swarm retests the result adversarially.
+
+### 9.2 The 10-Step Pipeline
+```
+ANY PUBLIC PRODUCT URL
+  ↓ 1. PRODUCT EXTRACTION (JSON-LD / OpenGraph / Tavily Extract)
+  ↓ 2. PRODUCT NORMALISATION (Grok Bot → structured CommerceProduct)
+  ↓ 3. LIVE COMPETITOR DISCOVERY (Tavily Search / Category grounding)
+  ↓ 4. CATEGORY SCHEMA (Grok Bot identifies decision dimensions)
+  ↓ 5. DYNAMIC PERSONA FACTORY (generate 200 category-specific buyers locally)
+  ↓ 6. LOCAL SWARM (inspect → compare → reject → buy via generic utility)
+  ↓ 7. REAL TRACE-DERIVED METRICS (dynamic choice share & rejection drivers)
+  ↓ 8. GROK BOT REDESIGN (structured counterfactual product proposition)
+  ↓ 9. SAME HELD-OUT SWARM RETEST (adversarial validation: PASS or REJECT)
+  ↓ 10. SHOPIFY DRAFT (create draft with dynamic title, price & attributes)
+```
+
+### 9.3 Dynamic Data Contracts
+```typescript
+export interface DecisionDimension {
+  key: string;
+  label: string;
+  type: "numeric" | "categorical" | "boolean";
+  importance_mean: number; // 0.0 - 1.0
+  direction?: "higher_better" | "lower_better" | "target";
+  unit?: string;
+}
+
+export interface CategorySchema {
+  category: string;
+  categoryLabel: string;
+  decision_dimensions: DecisionDimension[];
+  typicalPriceRange: { min: number; max: number };
+}
+
+export interface CommerceProduct {
+  id: string;
+  title: string;
+  brand: string;
+  category: string;
+  price: number;
+  currency: string;
+  attributes: Record<string, string | number | boolean>;
+  imageUrl?: string;
+  sourceUrl: string;
+  isMerchantSKU?: boolean;
+}
+```
+
+### 9.4 Generic Utility Function
+For each agent $a$ and product $p$:
+$$\text{utility}(a, p) = \text{attributeFit}(a, p) + \text{priceFit}(a, p) + \text{seededNoise}(a, p)$$
+If $\max_p(\text{utility}(a, p)) < \text{reservationUtility}(a)$, the agent logs a bounce (`no_purchase`).
+Every non-choice produces explicit trace evidence:
+```json
+{
+  "agentId": "A041",
+  "productId": "merchant-sku",
+  "action": "reject",
+  "reasons": [
+    { "dimension": "price", "desired": "<=130", "observed": 145, "impact": -0.18 },
+    { "dimension": "stability", "desired": 0.8, "observed": 0.5, "impact": -0.12 }
+  ]
+}
+```
+All rejection drivers in the dashboard are computed from these logged reasons rather than static strings.
+

@@ -314,3 +314,53 @@
 - [x] All 13 tasks complete.
 - [x] All unit tests and production build green.
 - [x] Ready for stage demo presentation.
+
+---
+
+## Phase 6: Dynamic Multi-Category Commerce Wind Tunnel (SPEC-002)
+
+### Task 14: Dynamic Domain Contracts & Seeded PRNG Buyer Factory
+**Description:** Define `CommerceProduct`, `CategorySchema`, `DecisionDimension`, `DynamicBuyerAgent`, and `DynamicDecisionTrace` in `src/types/index.ts`. Implement seeded PRNG (`mulberry32`) buyer cohort factory (`generateBuyerCohort`) in `src/lib/engine/dynamicEngine.ts`.
+**Acceptance criteria:**
+- [x] Export `CommerceProduct` with dynamic attributes and category.
+- [x] Seeded buyer cohort generation generates 200 heterogeneous buyers deterministically given a schema and price distribution.
+- [x] Personas feature distinct budgets, max WTP, price sensitivity, and weighted dimension preferences.
+
+### Task 15: Extraction Ladder & Tavily Grounding
+**Description:** Upgrade `src/lib/engine/extractor.ts` and create `src/lib/engine/tavily.ts` with JSON-LD, OpenGraph, Tavily Extract, and Grok Normalizer.
+**Acceptance criteria:**
+- [x] Resolves public URLs into normalized `CommerceProduct` records.
+- [x] Uses Tavily Extract / Search when API key is provided, with intelligent offline category fallbacks.
+- [x] If extraction fails, returns explicit error: *"Could not reliably extract this product. Try another public product URL."* — zero secret jacket fallbacks for arbitrary URLs.
+
+### Task 16: Category Ontology & Live Competitor Discovery
+**Description:** Implement `src/lib/engine/categoryOntology.ts` to deduce category decision dimensions (cushioning, stability, weight for running shoes; battery, ANC, weight for headphones; silhouette, material for apparel) and discover live competitors via Tavily Search.
+**Acceptance criteria:**
+- [x] Produces category schema with weighted decision dimensions.
+- [x] Identifies 3 realistic or live competitors for any category.
+
+### Task 17: Local Multi-Attribute Swarm Simulator & Trace Engine
+**Description:** Implement generic multi-attribute utility engine in `src/lib/engine/dynamicSimulator.ts`. Computes `utility(agent, product) = attributeFit + priceFit + noise`, logs structured rejection evidence, and derives real choice shares without hard-coded numbers.
+**Acceptance criteria:**
+- [x] Simulates 200 agents in <200ms locally.
+- [x] Computes real choice share, real non-capture rate, and dynamically aggregated rejection drivers.
+
+### Task 18: Grok Bot Counterfactual Redesign & Adversarial Retest
+**Description:** Upgrade `src/lib/engine/grokRedesign.ts` and simulator to formulate category-appropriate physical redesigns and run parallel held-out market validation (Market A vs Market B) with real delta (+/- pp).
+**Acceptance criteria:**
+- [x] Formulates dynamic counterfactual specs based on the top empirical rejection drivers.
+- [x] Reruns held-out 200 agents to measure real, non-hardcoded uplift (validates or rejects the counterfactual).
+
+### Task 19: Frontend Dynamic Visualizers & Milestone Demos
+**Description:** Update `UrlInputHero.tsx`, `SwarmArena.tsx`, `LostDemandTelemetry.tsx`, `GrokRedesignCard.tsx`, and `app/page.tsx`.
+**Acceptance criteria:**
+- [x] UI displays: *"Paste a public product URL"* with 3 quick test presets: Jacket, Running Shoes, Headphones.
+- [x] Dynamically displays category, decision dimensions, competitors, rejection drivers, and counterfactual results.
+
+### Task 20: Multi-Category Integration Test Suite & Vercel Readiness
+**Description:** Implement automated test suite in `tests/dynamicEngine.test.ts` verifying Test 1 (Jacket), Test 2 (Running Shoes), Test 3 (Headphones). Verify `npm run build` passes with zero errors for Vercel deployment.
+**Acceptance criteria:**
+- [x] All 3 category tests pass with distinct competitors, dimensions, and rejection reasons.
+- [x] `npm test` (13/13 passed) and `npm run build` (0 errors, 8/8 static pages) succeed cleanly.
+
+

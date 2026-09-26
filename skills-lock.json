@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "grok-bot": {
+      "source": "adamanz/grok-bot-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "51ce611cdcb14f878302f4631db0da19089e6f58d8aca0bc3d8c53627087616b"
+    }
+  }
+}

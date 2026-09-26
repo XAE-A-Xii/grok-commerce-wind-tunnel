@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { UrlInputHero } from "@/components/UrlInputHero";
 import { SwarmArena } from "@/components/SwarmArena";
@@ -12,21 +12,34 @@ import { ParallelRerunSection } from "@/components/ParallelRerunSection";
 import { ShopifyDeployModal } from "@/components/ShopifyDeployModal";
 
 import { MERCHANT_SKU, COMPETITOR_SKUS, COUNTERFACTUAL_VARIANT_B } from "@/lib/data/seedSKUs";
-import { DISCOVERY_AGENTS, HELD_OUT_AGENTS } from "@/lib/data/buyerPersonas";
+import { DISCOVERY_AGENTS } from "@/lib/data/buyerPersonas";
 import { FROZEN_ROUND1_REPORT, FROZEN_COUNTERFACTUAL_RESULT } from "@/lib/data/fixtureExperiment";
-import { ProductSKU, LostDemandReport, CounterfactualResult, AgentShoppingTrace } from "@/types";
+import {
+  ProductSKU,
+  CommerceProduct,
+  CategorySchema,
+  LostDemandReport,
+  CounterfactualResult,
+} from "@/types";
 import { GrokRedesignProposal } from "@/lib/engine/grokRedesign";
 import { CortexAnalysisResult } from "@/lib/engine/cortexEvaluator";
 
 export default function Home() {
   // State
   const [extractedSKU, setExtractedSKU] = useState<ProductSKU>(MERCHANT_SKU);
+  const [commerceProduct, setCommerceProduct] = useState<CommerceProduct | null>(null);
+  const [categorySchema, setCategorySchema] = useState<CategorySchema | null>(null);
+  const [competitors, setCompetitors] = useState<any[]>(COMPETITOR_SKUS);
+
   const [round1Report, setRound1Report] = useState<LostDemandReport | null>(null);
-  const [traces, setTraces] = useState<AgentShoppingTrace[]>([]);
+  const [traces, setTraces] = useState<any[]>([]);
   const [grokProposal, setGrokProposal] = useState<GrokRedesignProposal | null>(null);
   const [cortexData, setCortexData] = useState<CortexAnalysisResult | null>(null);
   const [counterfactualResult, setCounterfactualResult] = useState<CounterfactualResult | null>(null);
-  const [reclaimedTraces, setReclaimedTraces] = useState<AgentShoppingTrace[]>([]);
+  const [counterfactualReport, setCounterfactualReport] = useState<LostDemandReport | null>(null);
+  const [reclaimedTraces, setReclaimedTraces] = useState<any[]>([]);
+  const [validationStatus, setValidationStatus] = useState<"validated" | "rejected">("validated");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Loading States
   const [isSimulatingRound1, setIsSimulatingRound1] = useState(false);
@@ -37,44 +50,72 @@ export default function Home() {
   // Trigger Round 1 Discovery Swarm Simulation
   const handleStartSimulation = async (url: string) => {
     setIsSimulatingRound1(true);
+    setErrorMessage(null);
     setRound1Report(null);
     setGrokProposal(null);
     setCortexData(null);
     setCounterfactualResult(null);
 
     try {
-      // 1. Extract SKU
+      // 1. Extract SKU & Discover Category Ontology
       const extractRes = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
       const extractData = await extractRes.json();
-      const currentSKU = extractData.sku || MERCHANT_SKU;
-      setExtractedSKU(currentSKU);
 
-      // 2. Run Discovery Swarm
+      if (!extractRes.ok || extractData.error) {
+        setErrorMessage(extractData.error || "Could not reliably extract this product. Try another public product URL.");
+        setIsSimulatingRound1(false);
+        return;
+      }
+
+      const currentSKU = extractData.sku || MERCHANT_SKU;
+      const currentCommerce = extractData.commerceProduct || null;
+      const currentSchema = extractData.categorySchema || null;
+      const currentComps = extractData.competitors || COMPETITOR_SKUS;
+
+      setExtractedSKU(currentSKU);
+      setCommerceProduct(currentCommerce);
+      setCategorySchema(currentSchema);
+      setCompetitors(currentComps);
+
+      // 2. Run Discovery Swarm locally over the category
       const simRes = await fetch("/api/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sku: currentSKU, mode: "discovery" }),
+        body: JSON.stringify({
+          sku: currentSKU,
+          commerceProduct: currentCommerce,
+          categorySchema: currentSchema,
+          competitors: currentComps,
+          mode: "discovery",
+        }),
       });
       const simData = await simRes.json();
-      setRound1Report(simData.report || FROZEN_ROUND1_REPORT);
+      const activeReport = simData.report || FROZEN_ROUND1_REPORT;
+      setRound1Report(activeReport);
       setTraces(simData.traces || []);
 
       // 3. Generate Grok Redesign & CORTEX evaluation
       const redesignRes = await fetch("/api/redesign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sku: currentSKU, report: simData.report }),
+        body: JSON.stringify({
+          sku: currentSKU,
+          commerceProduct: currentCommerce,
+          categorySchema: currentSchema,
+          competitors: currentComps,
+          report: activeReport,
+        }),
       });
       const redesignData = await redesignRes.json();
       setGrokProposal(redesignData.redesign);
       setCortexData(redesignData.cortex);
-    } catch (err) {
-      console.warn("Using offline fallback for simulation:", err);
-      setRound1Report(FROZEN_ROUND1_REPORT);
+    } catch (err: any) {
+      console.warn("Simulation error:", err);
+      setErrorMessage(err.message || "Simulation encountered a problem.");
     } finally {
       setIsSimulatingRound1(false);
     }
@@ -89,15 +130,23 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sku: extractedSKU,
+          commerceProduct,
+          categorySchema,
+          competitors,
           variantBSKU: grokProposal?.redesignedSKU || COUNTERFACTUAL_VARIANT_B,
+          variantBProduct: grokProposal?.redesignedSKU,
+          grokProposal,
           mode: "parallel_rerun",
         }),
       });
       const data = await res.json();
       setCounterfactualResult(data.counterfactualResult || FROZEN_COUNTERFACTUAL_RESULT);
+      setCounterfactualReport(data.counterfactualReport || null);
       setReclaimedTraces(data.reclaimedTraces || []);
+      setValidationStatus(data.validationStatus || "validated");
     } catch (err) {
       setCounterfactualResult(FROZEN_COUNTERFACTUAL_RESULT);
+      setValidationStatus("validated");
     } finally {
       setIsValidatingRound2(false);
     }
@@ -122,6 +171,7 @@ export default function Home() {
   };
 
   const handleReset = () => {
+    setErrorMessage(null);
     setRound1Report(null);
     setGrokProposal(null);
     setCortexData(null);
@@ -142,6 +192,8 @@ export default function Home() {
           onStartSimulation={handleStartSimulation}
           isLoading={isSimulatingRound1}
           extractedSKU={extractedSKU}
+          commerceProduct={commerceProduct}
+          errorMessage={errorMessage}
         />
 
         {/* Loading Indicator for Swarm */}
@@ -154,10 +206,10 @@ export default function Home() {
               </div>
             </div>
             <h3 className="text-lg font-bold text-white font-mono uppercase">
-              RELEASING 200 DISCOVERY BUYER AGENTS INTO THE LIVE MARKET...
+              RELEASING 200 AUTONOMOUS BUYERS INTO CATEGORY MARKET...
             </h3>
             <p className="text-xs text-slate-400 font-mono">
-              Crawling category competitors • Traversing shopping funnels • Logging explicit sensory friction
+              Grok Bot category ontology • Heterogeneous buyer utility • Real-time sensory & price friction traces
             </p>
           </div>
         )}
@@ -170,16 +222,16 @@ export default function Home() {
               traces={traces}
               agents={DISCOVERY_AGENTS}
               merchantSKU={extractedSKU}
-              competitors={COMPETITOR_SKUS}
+              competitors={competitors}
             />
 
-            {/* Stage 2: Lost Demand Telemetry (Non-Capture Rate & Rejection Drivers) */}
+            {/* Stage 2: Lost Demand Telemetry (Non-Capture Rate & Dynamic Rejection Drivers) */}
             <LostDemandTelemetry report={round1Report} />
 
             {/* Stage 3: Head-to-Head Defection Matrix */}
             <CompetitorDefectionMatrix
               report={round1Report}
-              competitors={COMPETITOR_SKUS}
+              competitors={competitors}
             />
 
             {/* Stage 4: Grok Counterfactual Redesign */}
@@ -199,10 +251,14 @@ export default function Home() {
             {counterfactualResult && (
               <ParallelRerunSection
                 baselineReport={round1Report}
-                counterfactualReport={round1Report}
+                counterfactualReport={counterfactualReport || round1Report}
                 counterfactualResult={counterfactualResult}
                 reclaimedTraces={reclaimedTraces}
                 onOpenShopifyDeploy={() => setIsShopifyModalOpen(true)}
+                originalTitle={extractedSKU.title}
+                variantBTitle={grokProposal?.redesignedSKU?.title || "Variant B Redesign"}
+                competitorNames={competitors.map((c) => c.title)}
+                validationStatus={validationStatus}
               />
             )}
           </div>
@@ -213,10 +269,10 @@ export default function Home() {
       <ShopifyDeployModal
         isOpen={isShopifyModalOpen}
         onClose={() => setIsShopifyModalOpen(false)}
-        defaultTitle={grokProposal?.redesignedSKU.title || "Brown Oversized Vintage Motorsport Jacket"}
-        defaultPrice={89.0}
-        defaultBOM={38.0}
-        defaultBatch={100}
+        defaultTitle={grokProposal?.redesignedSKU?.title || "Brown Oversized Vintage Motorsport Jacket"}
+        defaultPrice={counterfactualResult?.proposedRRP || grokProposal?.redesignedSKU?.price || 89.0}
+        defaultBOM={counterfactualResult?.targetBOM || grokProposal?.targetBOM || 38.0}
+        defaultBatch={counterfactualResult?.recommendedBatchSize || 100}
       />
 
       {/* Footer */}

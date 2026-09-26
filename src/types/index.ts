@@ -111,3 +111,74 @@ export interface ShopifyDraftRecord {
   status: 'draft_created' | 'synced_to_shopify';
   preview_payload?: Record<string, unknown>;
 }
+
+// 8. Dynamic Intermediate Representation (SPEC-002)
+export interface DecisionDimension {
+  key: string;
+  label: string;
+  type: "numeric" | "categorical" | "boolean";
+  importance_mean: number; // 0.0 - 1.0
+  direction?: "higher_better" | "lower_better" | "target";
+  unit?: string;
+  options?: string[]; // for categorical
+}
+
+export interface CategorySchema {
+  category: string;
+  categoryLabel: string;
+  decision_dimensions: DecisionDimension[];
+  typicalPriceRange: { min: number; max: number };
+}
+
+export interface CommerceProduct {
+  id: string;
+  title: string;
+  brand: string;
+  category: string;
+  price: number;
+  currency: string;
+  attributes: Record<string, string | number | boolean>;
+  imageUrl?: string;
+  sourceUrl: string;
+  isMerchantSKU?: boolean;
+}
+
+// 9. Dynamic Heterogeneous Buyer Agent
+export interface DynamicBuyerAgent {
+  id: string;
+  cohort: "discovery" | "held_out";
+  budget: number;
+  maxWTP: number;
+  priceSensitivity: number; // 0.0 (unconcerned) to 1.0 (extreme)
+  dimensionWeights: Record<string, number>; // dimension.key -> importance (0-1)
+  idealValues: Record<string, string | number | boolean>;
+  brandLoyalty: number; // 0-1
+}
+
+// 10. Structured Rejection Reason & Trace Evidence
+export interface RejectionReasonEvidence {
+  dimension: string;
+  desired: string | number;
+  observed: string | number;
+  impact: number; // negative impact on utility, e.g. -0.18
+}
+
+export interface DynamicDecisionTrace {
+  agentId: string;
+  chosenProductId?: string; // undefined if bounced
+  action: "purchased" | "reject" | "no_purchase";
+  utilities: Record<string, number>; // productId -> utility score
+  reasons: RejectionReasonEvidence[];
+  reclaimedByVariantB?: boolean;
+}
+
+export interface DynamicSwarmResult {
+  categorySchema: CategorySchema;
+  merchantProduct: CommerceProduct;
+  competitors: CommerceProduct[];
+  report: LostDemandReport;
+  traces: DynamicDecisionTrace[];
+  latencyMs: number;
+  isLiveDynamic?: boolean;
+}
+
