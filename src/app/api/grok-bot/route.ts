@@ -12,6 +12,27 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { commerceProduct, report, categorySchema, competitors } = body;
 
+    // 0. If running on Vercel and GROK_BOT_BRIDGE_URL is set, forward directly to your Mac Grok Bot tunnel!
+    if (process.env.GROK_BOT_BRIDGE_URL && process.env.VERCEL === "1") {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const tunnelRes = await fetch(`${process.env.GROK_BOT_BRIDGE_URL}/api/grok-bot`, {
+          signal: controller.signal,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        clearTimeout(timeoutId);
+        if (tunnelRes.ok) {
+          const tunnelData = await tunnelRes.json();
+          return NextResponse.json(tunnelData);
+        }
+      } catch (tunnelErr) {
+        console.warn("GROK_BOT_BRIDGE_URL forward failed, falling back to edge:", tunnelErr);
+      }
+    }
+
     const grokMode = process.env.GROK_MODE || "bot";
     const grokScriptPath = path.resolve(
       process.cwd(),

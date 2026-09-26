@@ -36,10 +36,26 @@ def _decrypt_access_token() -> str:
         )
     secrets = json.loads(SECRETS_PATH.read_text())
     stored = secrets.get("cursor-access-token")
-    if not isinstance(stored, str) or not stored.startswith("scoped:v1:"):
+    if not stored:
+        # Check newer Cursor Grok Bot format inside cursor-accounts
+        accs_raw = secrets.get("cursor-accounts")
+        if isinstance(accs_raw, str):
+            try:
+                accs = json.loads(accs_raw)
+                active = accs.get("active")
+                stored = accs.get("accounts", {}).get(active, {}).get("cursor-access-token")
+            except Exception:
+                pass
+
+    if not isinstance(stored, str):
         raise GrokBotError("Grok Bot access token is missing or in an unexpected format.")
-    rest = stored[len("scoped:v1:") :]
-    raw = base64.b64decode(rest[rest.index(":") + 1 :])
+
+    if stored.startswith("scoped:v1:"):
+        rest = stored[len("scoped:v1:") :]
+        raw = base64.b64decode(rest[rest.index(":") + 1 :])
+    else:
+        raw = base64.b64decode(stored)
+
     if not raw.startswith(b"v10"):
         raise GrokBotError("Grok Bot access token is not in the expected v10 envelope.")
     try:
