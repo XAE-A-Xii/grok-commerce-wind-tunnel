@@ -1,6 +1,7 @@
 import { ProductSKU, CommerceProduct } from "@/types";
 import { MERCHANT_SKU } from "@/lib/data/seedSKUs";
 import { detectProductCategory } from "./categoryOntology";
+import { amazonAsinFromUrl, isWeakProductTitle, parseProductHtml } from "./productPage";
 import { recoverProductWithTavily } from "./tavily";
 
 export interface ExtractionResult {
@@ -56,8 +57,8 @@ export async function extractProductFromUrl(url: string): Promise<ExtractionResu
     };
   }
 
-  // Preset quick tests: Running Shoes
-  if (normalizedUrl.includes("pegasus") || normalizedUrl.includes("nike")) {
+  // Preset quick tests: Running Shoes. Real Nike URLs are extracted, not substituted.
+  if (normalizedUrl.includes("shop.com") && (normalizedUrl.includes("pegasus") || normalizedUrl.includes("nike"))) {
     const title = "Nike Air Zoom Pegasus 40 Running Shoes";
     const price = 130.0;
     const commerceProduct: CommerceProduct = {
@@ -102,8 +103,11 @@ export async function extractProductFromUrl(url: string): Promise<ExtractionResu
     };
   }
 
-  // Preset quick tests: Headphones
-  if (normalizedUrl.includes("sony-wh") || normalizedUrl.includes("headphones") || normalizedUrl.includes("wh-1000xm5")) {
+  // Preset quick tests: Headphones. Real headphone URLs are extracted, not substituted.
+  if (
+    normalizedUrl.includes("shop.com") &&
+    (normalizedUrl.includes("sony-wh") || normalizedUrl.includes("headphones") || normalizedUrl.includes("wh-1000xm5"))
+  ) {
     const title = "Sony WH-1000XM5 Noise Cancelling Headphones";
     const price = 299.0;
     const commerceProduct: CommerceProduct = {
@@ -171,143 +175,85 @@ export async function extractProductFromUrl(url: string): Promise<ExtractionResu
   let extractedImage = "";
   let extractionSource: ExtractionResult["source"] = "open_graph";
 
-  if (!extractedTitle) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+  const applyPage = (html: string) => {
+    const page = parseProductHtml(html);
+    if (page.title && (isWeakProductTitle(extractedTitle) || !extractedTitle)) {
+      extractedTitle = page.title;
+      extractionSource = page.source;
+    }
+    if (page.brand && (extractedBrand === "Merchant Store" || !extractedBrand)) {
+      extractedBrand = page.brand;
+    }
+    if (extractedPrice == null && page.price != null) extractedPrice = page.price;
+    if ((!extractedImage || isGarbageText(extractedImage)) && page.imageUrl && !isGarbageText(page.imageUrl)) {
+      extractedImage = page.imageUrl;
+    }
+  };
 
-      const res = await fetch(url, {
+  const readPage = async (pageUrl: string) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(pageUrl, {
         signal: controller.signal,
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
           Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-GB,en;q=0.9",
         },
       });
+      if (res.ok) applyPage(await res.text());
+    } catch {
+      // proceed to the Amazon ASIN page or Tavily
+    } finally {
       clearTimeout(timeoutId);
-
-      if (res.ok) {
-        const html = await res.text();
-
-        // JSON-LD attempt
-        const jsonLdMatch = html.match(
-          /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
-        );
-        if (jsonLdMatch) {
-          for (const tag of jsonLdMatch) {
-            try {
-              const jsonText = tag.replace(/<\/?script[^>]*>/gi, "");
-              const data = JSON.parse(jsonText);
-              const product =
-                data["@type"] === "Product"
-                  ? data
-                  : Array.isArray(data["@graph"])
-                  ? data["@graph"].find((item: any) => item["@type"] === "Product")
-                  : null;
-
-              if (product && product.name && !isGarbageText(product.name)) {
-                extractedTitle = product.name;
-                extractedBrand = product.brand?.name || "Merchant";
-                const parsedPrice =
-                  typeof product.offers?.price === "number"
-                    ? product.offers.price
-                    : parseFloat(product.offers?.price || "");
-                if (!isNaN(parsedPrice) && parsedPrice > 0) {
-                  extractedPrice = parsedPrice;
-                }
-                const rawImg = Array.isArray(product.image)
-                  ? product.image[0]
-                  : typeof product.image === "string"
-                  ? product.image
-                  : product.image?.url || "";
-                if (rawImg && !isGarbageText(rawImg)) {
-                  extractedImage = rawImg;
-                }
-                extractionSource = "json_ld";
-                break;
-              }
-            } catch (e) {
-              // continue parsing
-            }
-          }
-        }
-
-        // OpenGraph Fallback if JSON-LD missing
-        if (!extractedTitle) {
-          const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)?.[1];
-          const ogImage = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1];
-          const ogPrice = html.match(/<meta[^>]*property=["'](?:og|product):price:amount["'][^>]*content=["']([^"']+)["']/i)?.[1];
-          if (ogTitle && !isGarbageText(ogTitle)) {
-            extractedTitle = ogTitle;
-            if (ogImage && !isGarbageText(ogImage)) {
-              extractedImage = ogImage;
-            }
-            if (ogPrice && !isNaN(parseFloat(ogPrice))) {
-              extractedPrice = parseFloat(ogPrice);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      // proceed to Tavily or slug inference
     }
+  };
+
+  await readPage(url);
+
+  const asin = amazonAsinFromUrl(url);
+  const hostIsAmazon = /amazon\.|amzn\./i.test(url);
+  if (asin && !hostIsAmazon && (isWeakProductTitle(extractedTitle) || extractedPrice == null)) {
+    await readPage(`https://www.amazon.co.uk/dp/${asin}`);
   }
 
   // Tavily Extract fetches the URL when the storefront blocks a direct read.
   // Search is only the fallback when Extract returns failed_results.
-  if ((!extractedTitle || isGarbageText(extractedTitle)) && process.env.TAVILY_API_KEY) {
+  const needsRecovery = isWeakProductTitle(extractedTitle) || isGarbageText(extractedTitle) || extractedPrice == null;
+  if (needsRecovery && process.env.TAVILY_API_KEY) {
     try {
-      const recovered = await recoverProductWithTavily(url, process.env.TAVILY_API_KEY);
-      if (recovered && !isGarbageText(recovered.title)) {
-        extractedTitle = recovered.title;
-        if (recovered.price != null) extractedPrice = recovered.price;
-        if (recovered.imageUrl && !isGarbageText(recovered.imageUrl)) {
+      const recoveryTarget = asin ? `https://www.amazon.co.uk/dp/${asin}` : url;
+      const recovered = await recoverProductWithTavily(recoveryTarget, process.env.TAVILY_API_KEY);
+      if (recovered && !isGarbageText(recovered.title) && !isWeakProductTitle(recovered.title)) {
+        if (isWeakProductTitle(extractedTitle) || isGarbageText(extractedTitle)) {
+          extractedTitle = recovered.title;
+          extractionSource = recovered.source;
+        }
+        if (extractedPrice == null && recovered.price != null) extractedPrice = recovered.price;
+        if ((!extractedImage || isGarbageText(extractedImage)) && recovered.imageUrl && !isGarbageText(recovered.imageUrl)) {
           extractedImage = recovered.imageUrl;
         }
-        extractionSource = recovered.source;
       }
     } catch {
       // Tavily failed or timed out
     }
   }
 
-  // 4. URL Slug Fallback: captures readable product paths (e.g. /Product-Name/dp/ASIN or /products/item-name)
-  if (!extractedTitle || isGarbageText(extractedTitle)) {
+  // URL slug is the last resort, and a bare ASIN is not a product name.
+  if (isWeakProductTitle(extractedTitle) || isGarbageText(extractedTitle)) {
     try {
       const parsed = new URL(url);
       const segments = parsed.pathname.split("/").filter(Boolean);
-      
-      // Amazon structure: /<product-title-slug>/dp/<asin>
-      let candidateSlug = "";
-      const dpIdx = segments.findIndex((s) => s.toLowerCase() === "dp" || s.toLowerCase() === "d");
-      if (dpIdx > 0 && segments[dpIdx - 1]) {
-        candidateSlug = segments[dpIdx - 1];
-      }
-
-      // If no dp structure, search for segment with hyphens or underscores
-      if (!candidateSlug && segments.length > 0) {
-        for (let i = segments.length - 1; i >= 0; i--) {
-          const seg = segments[i];
-          if ((seg.includes("-") || seg.includes("_")) && seg.length >= 6) {
-            candidateSlug = seg;
-            break;
-          }
-        }
-        if (!candidateSlug) {
-          candidateSlug = segments[segments.length - 1];
-        }
-      }
-
+      const readable = segments.filter((segment) => !/^[A-Z0-9]{10}$/i.test(segment) && (segment.includes("-") || segment.includes("_")) && segment.length >= 6);
+      const candidateSlug = readable[readable.length - 1] || "";
       if (candidateSlug) {
-        const cleanName = candidateSlug
-          .replace(/[-_]/g, " ")
-          .trim();
-        if (cleanName.length >= 4 && !isGarbageText(cleanName)) {
+        const cleanName = candidateSlug.replace(/[-_]/g, " ").trim();
+        if (cleanName.length >= 4 && !isGarbageText(cleanName) && !isWeakProductTitle(cleanName)) {
           extractedTitle = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
           const words = cleanName.split(" ").filter(Boolean);
-          if (words.length > 1) {
-            extractedBrand = words[0];
-          }
+          if (words.length > 1 && extractedBrand === "Merchant Store") extractedBrand = words[0];
         }
       }
     } catch {
@@ -349,6 +295,13 @@ export async function extractProductFromUrl(url: string): Promise<ExtractionResu
       comfort_weight: 255,
       price: finalPrice,
       sound_profile: 0.82,
+    };
+  } else if (category === "general_commerce") {
+    attributes = {
+      build_quality: 0.7,
+      price: finalPrice,
+      design_aesthetic: 0.66,
+      usability: 0.7,
     };
   } else {
     attributes = {

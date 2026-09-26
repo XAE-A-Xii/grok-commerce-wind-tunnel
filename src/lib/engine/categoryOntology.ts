@@ -318,7 +318,10 @@ export async function discoverCompetitors(
       const searchRes = await fetch("https://api.tavily.com/search", {
         signal: controller.signal,
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
+        },
         body: JSON.stringify({
           api_key: process.env.TAVILY_API_KEY,
           query: `${merchantProduct.title} top alternative competitors buy price`,
