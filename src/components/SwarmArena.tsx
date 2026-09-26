@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import { Users, ShoppingBag, Eye, XCircle, ArrowUpRight } from "lucide-react";
-import { AgentShoppingTrace, ProductSKU, ShoppingAgent, CommerceProduct } from "@/types";
+import { ProductSKU } from "@/types";
 
 interface SwarmArenaProps {
   traces: any[];
-  agents: ShoppingAgent[];
+  agents: Array<{ id: string; budget: number; maxWTP: number; cohort?: string }>;
   merchantSKU: ProductSKU;
   competitors: any[];
 }
@@ -21,6 +21,8 @@ export const SwarmArena: React.FC<SwarmArenaProps> = ({
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const getAgentById = (id: string) => agents.find((a) => a.id === id);
+  const competitorName = (id?: string) => competitors.find((competitor) => competitor.id === id)?.title || "a rival listing";
+  const competitorLink = (competitor: any) => competitor?.sourceUrl || competitor?.url || "";
 
   const merchantWins = traces.filter((t) => (t.chosenSKUId || t.chosenProductId) === merchantSKU.id).length;
   const bouncedWins = traces.filter((t) => t.finalDecision === "no_purchase" || t.action === "no_purchase").length;
@@ -76,7 +78,7 @@ export const SwarmArena: React.FC<SwarmArenaProps> = ({
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Real-time individual agent decision paths and counter-evaluation logs
+            Each square is one buyer. Green stayed with you. Other colours left for a rival. Red walked away.
           </p>
         </div>
 
@@ -102,42 +104,28 @@ export const SwarmArena: React.FC<SwarmArenaProps> = ({
           >
             Your SKU ({merchantWins})
           </button>
-          {comp1 && (
-            <button
-              onClick={() => setFilter("comp_1")}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                filter === "comp_1"
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold"
-                  : "bg-surface text-slate-400 hover:text-white"
-              }`}
-            >
-              {comp1.title.split(" ")[0]} ({comp1Wins})
-            </button>
-          )}
-          {comp0 && (
-            <button
-              onClick={() => setFilter("comp_0")}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                filter === "comp_0"
-                  ? "bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold"
-                  : "bg-surface text-slate-400 hover:text-white"
-              }`}
-            >
-              {comp0.title.split(" ")[0]} ({comp0Wins})
-            </button>
-          )}
-          {comp2 && (
-            <button
-              onClick={() => setFilter("comp_2")}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                filter === "comp_2"
-                  ? "bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold"
-                  : "bg-surface text-slate-400 hover:text-white"
-              }`}
-            >
-              {comp2.title.split(" ")[0]} ({comp2Wins})
-            </button>
-          )}
+          {[comp0, comp1, comp2].map((competitor, index) => {
+            if (!competitor) return null;
+            const wins = index === 0 ? comp0Wins : index === 1 ? comp1Wins : comp2Wins;
+            const key = `comp_${index}`;
+            const tone =
+              index === 0
+                ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                : index === 1
+                ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                : "bg-purple-500/20 text-purple-300 border-purple-500/30";
+            return (
+              <button
+                key={competitor.id || key}
+                onClick={() => setFilter(key)}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  filter === key ? `${tone} border font-bold` : "bg-surface text-slate-400 hover:text-white"
+                }`}
+              >
+                {competitor.title.split(" ").slice(0, 2).join(" ")} ({wins})
+              </button>
+            );
+          })}
           <button
             onClick={() => setFilter("bounced")}
             className={`px-2.5 py-1 rounded-lg transition-all ${
@@ -152,7 +140,7 @@ export const SwarmArena: React.FC<SwarmArenaProps> = ({
       </div>
 
       {/* Grid of Agent Nodes */}
-      <div className="grid grid-cols-10 sm:grid-cols-20 gap-1.5 py-6">
+      <div className="grid grid-cols-10 md:grid-cols-[repeat(20,minmax(0,1fr))] gap-1.5 py-6">
         {filteredTraces.map((trace) => {
           const chosen = trace.chosenSKUId || trace.chosenProductId;
           const isMerchant = chosen === merchantSKU.id;
@@ -182,6 +170,24 @@ export const SwarmArena: React.FC<SwarmArenaProps> = ({
         })}
       </div>
 
+      <div className="flex flex-wrap gap-3 pb-2 text-xs">
+        {competitors.map((competitor) => {
+          const href = competitorLink(competitor);
+          if (!href.startsWith("http")) return null;
+          return (
+            <a
+              key={competitor.id}
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="text-cyan hover:underline"
+            >
+              {competitor.title}
+            </a>
+          );
+        })}
+      </div>
+
       {/* Selected Agent Inspector */}
       {selectedTrace && (
         <div className="mt-2 rounded-xl bg-surface/90 border border-white/10 p-4 transition-all animate-fadeIn">
@@ -204,7 +210,7 @@ export const SwarmArena: React.FC<SwarmArenaProps> = ({
                   ? "PURCHASED YOUR SKU"
                   : (selectedTrace.finalDecision === "no_purchase" || selectedTrace.action === "no_purchase")
                   ? "BOUNCED (NO PURCHASE)"
-                  : `DEFECTED TO: ${selectedTrace.chosenSKUId || selectedTrace.chosenProductId}`}
+                  : `LEFT FOR ${competitorName(selectedTrace.chosenSKUId || selectedTrace.chosenProductId)}`}
               </span>
             </div>
             <span className="text-xs font-mono text-slate-400">

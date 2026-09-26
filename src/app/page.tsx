@@ -26,10 +26,11 @@ import { CortexAnalysisResult } from "@/lib/engine/cortexEvaluator";
 
 export default function Home() {
   // State
-  const [extractedSKU, setExtractedSKU] = useState<ProductSKU>(MERCHANT_SKU);
+  const [extractedSKU, setExtractedSKU] = useState<ProductSKU | null>(null);
   const [commerceProduct, setCommerceProduct] = useState<CommerceProduct | null>(null);
   const [categorySchema, setCategorySchema] = useState<CategorySchema | null>(null);
-  const [competitors, setCompetitors] = useState<any[]>(COMPETITOR_SKUS);
+  const [competitors, setCompetitors] = useState<any[]>([]);
+  const [buyers, setBuyers] = useState<Array<{ id: string; budget: number; maxWTP: number; cohort?: string }>>([]);
 
   const [round1Report, setRound1Report] = useState<LostDemandReport | null>(null);
   const [traces, setTraces] = useState<any[]>([]);
@@ -97,6 +98,7 @@ export default function Home() {
       const activeReport = simData.report || FROZEN_ROUND1_REPORT;
       setRound1Report(activeReport);
       setTraces(simData.traces || []);
+      setBuyers(simData.buyers || []);
 
       // 3. Generate Grok Redesign & CORTEX evaluation
       const redesignRes = await fetch("/api/redesign", {
@@ -215,12 +217,12 @@ export default function Home() {
         )}
 
         {/* Round 1 Output */}
-        {round1Report && !isSimulatingRound1 && (
+        {round1Report && extractedSKU && !isSimulatingRound1 && (
           <div className="animate-fadeIn space-y-8">
             {/* Stage 1: Swarm Arena Visualizer */}
             <SwarmArena
               traces={traces}
-              agents={DISCOVERY_AGENTS}
+              agents={buyers.length > 0 ? buyers : DISCOVERY_AGENTS}
               merchantSKU={extractedSKU}
               competitors={competitors}
             />
@@ -271,7 +273,7 @@ export default function Home() {
       <ShopifyDeployModal
         isOpen={isShopifyModalOpen}
         onClose={() => setIsShopifyModalOpen(false)}
-        defaultTitle={grokProposal?.redesignedSKU?.title || `${extractedSKU.title} (Variant B)`}
+        defaultTitle={grokProposal?.redesignedSKU?.title || (extractedSKU ? `${extractedSKU.title} (Variant B)` : "Redesigned listing")}
         defaultPrice={counterfactualResult?.proposedRRP || grokProposal?.redesignedSKU?.price || 89.0}
         defaultBOM={counterfactualResult?.targetBOM || grokProposal?.targetBOM || 38.0}
         defaultBatch={counterfactualResult?.recommendedBatchSize || 100}

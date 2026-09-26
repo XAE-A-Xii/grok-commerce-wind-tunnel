@@ -282,12 +282,17 @@ export function runDynamicSwarmSimulation(
       competitorId: comp.id,
       competitorName: comp.title,
       lostBuyerCount: lostCount,
-      whyTheyWon: [
-        `Higher aggregate category utility for ${lostCount} buyers`,
-        `Favorable price-to-attribute ratio (£${comp.price.toFixed(2)})`,
-      ],
+      whyTheyWon:
+        lostCount > 0
+          ? [
+              `${lostCount} buyers chose this listing instead of yours`,
+              `It is on sale at £${comp.price.toFixed(2)}`,
+            ]
+          : ["No buyers left you for this listing"],
       whyTheyLost: [
-        `Vulnerable to focused proposition changes on top category drivers`,
+        lostCount > 0
+          ? "Shoppers who stayed were closer to your price or spec"
+          : "This rival did not take demand in this run",
       ],
     };
   });

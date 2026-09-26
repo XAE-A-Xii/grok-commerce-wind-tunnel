@@ -237,6 +237,9 @@ export function detectProductCategory(title: string, url: string = ""): string {
     text.includes("shirt") ||
     text.includes("top") ||
     text.includes("pants") ||
+    text.includes("trouser") ||
+    text.includes("legging") ||
+    text.includes("hiking") ||
     text.includes("skirt") ||
     text.includes("apparel") ||
     text.includes("clothing")
@@ -302,6 +305,81 @@ Return a JSON object conforming to:
   return baseSchema;
 }
 
+export function pickLiveCompetitors(
+  results: Array<{ title?: string; url?: string; content?: string }>,
+  merchant: { title: string; price: number; sourceUrl?: string; currency?: string },
+  schema: CategorySchema
+): CommerceProduct[] {
+  const merchantUrl = (merchant.sourceUrl || "").split("?")[0];
+  const ranked = results
+    .map((result, index) => ({ result, index, score: scoreCompetitorHit(result, merchantUrl) }))
+    .filter((item) => item.score >= 2)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const picked: CommerceProduct[] = [];
+  for (const item of ranked) {
+    if (picked.length >= 3) break;
+    const title = cleanCompetitorTitle(item.result.title || "");
+    const sourceUrl = item.result.url || "";
+    if (!title || picked.some((competitor) => competitor.sourceUrl === sourceUrl)) continue;
+    const price = priceFromSnippet(item.result.content || "", merchant.price, picked.length);
+    picked.push({
+      id: `comp_live_${picked.length}`,
+      title,
+      brand: title.split(" ")[0] || "Competitor",
+      category: schema.category,
+      price,
+      currency: merchant.currency || "GBP",
+      attributes: attributesForPrice(schema, price, picked.length),
+      imageUrl: "",
+      sourceUrl,
+    });
+  }
+  return picked;
+}
+
+function scoreCompetitorHit(result: { title?: string; url?: string }, merchantUrl: string): number {
+  const url = result.url || "";
+  const title = (result.title || "").toLowerCase();
+  if (!url.startsWith("http")) return -1;
+  if (merchantUrl && url.split("?")[0] === merchantUrl) return -1;
+  if (/google\.|youtube\.|facebook\.|reddit\.|wikipedia\.|pinterest\./i.test(url)) return -1;
+  if (/amazon\.[^/]+\/s([/?]|$)/i.test(url)) return -1;
+  if (/best |top \d|review|reddit|vs\b|roundup/.test(title)) return -1;
+  let score = 1;
+  if (/\/dp\/|\/gp\/product\/|\/product\/|\/products\//i.test(url)) score += 3;
+  if (/amazon\.|regatta|decathlon|gooutdoors|blacks\.co|craghoppers/i.test(url)) score += 1;
+  if (title.length >= 12) score += 1;
+  return score;
+}
+
+function cleanCompetitorTitle(title: string): string {
+  return title
+    .replace(/\s*[:|]\s*Amazon\.[a-z.]+.*$/i, "")
+    .replace(/\s+[-|–]\s*Amazon\.[a-z.]+.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function priceFromSnippet(text: string, merchantPrice: number, index: number): number {
+  const match = text.match(/£\s*(\d{1,4}(?:\.\d{2})?)/);
+  const parsed = match ? parseFloat(match[1]) : NaN;
+  if (Number.isFinite(parsed) && parsed >= 5 && parsed <= 400) return parsed;
+  const factor = index === 0 ? 1.12 : index === 1 ? 0.94 : 0.82;
+  return Math.round(merchantPrice * factor);
+}
+
+function attributesForPrice(schema: CategorySchema, price: number, index: number): Record<string, string | number | boolean> {
+  const attributes: Record<string, string | number | boolean> = {};
+  schema.decision_dimensions.forEach((dim) => {
+    if (dim.key === "price") attributes.price = price;
+    else if (dim.type === "numeric") attributes[dim.key] = index === 0 ? 0.84 : index === 1 ? 0.74 : 0.66;
+    else if (dim.type === "boolean") attributes[dim.key] = index < 2;
+    else if (dim.options && dim.options.length > 0) attributes[dim.key] = dim.options[index % dim.options.length];
+  });
+  return attributes;
+}
+
 /**
  * Discovers live competitors for the given category & product.
  * Returns 3 grounded competitors with realistic specs and pricing.
@@ -324,51 +402,17 @@ export async function discoverCompetitors(
         },
         body: JSON.stringify({
           api_key: process.env.TAVILY_API_KEY,
-          query: `${merchantProduct.title} top alternative competitors buy price`,
+          query: `${merchantProduct.title} buy alternative`,
           search_depth: "basic",
-          max_results: 5,
+          max_results: 8,
         }),
       });
       clearTimeout(timeoutId);
 
       if (searchRes.ok) {
         const searchData = await searchRes.json();
-        const results = searchData.results || [];
-        if (results.length >= 3) {
-          const liveCompetitors: CommerceProduct[] = results.slice(0, 3).map((r: any, idx: number) => {
-            const rawTitle = (r.title || `Market Competitor ${idx + 1}`).split(/[-–|:]/)[0].trim();
-            const brandGuess = (r.title || "").split(/[-–|:]/)[1]?.trim() || "Competitor";
-            const priceFactor = idx === 0 ? 1.15 : idx === 1 ? 0.95 : 0.8;
-            const livePrice = Math.round(merchantProduct.price * priceFactor);
-
-            const attributes: Record<string, string | number | boolean> = {};
-            schema.decision_dimensions.forEach((dim) => {
-              if (dim.key === "price") {
-                attributes.price = livePrice;
-              } else if (dim.type === "numeric") {
-                attributes[dim.key] = idx === 0 ? 0.85 : idx === 1 ? 0.72 : 0.62;
-              } else if (dim.type === "boolean") {
-                attributes[dim.key] = idx < 2;
-              } else if (dim.options && dim.options.length > 0) {
-                attributes[dim.key] = dim.options[idx % dim.options.length];
-              }
-            });
-
-            return {
-              id: `tavily_comp_${idx}_${Date.now()}`,
-              title: rawTitle,
-              brand: brandGuess,
-              category: schema.category,
-              price: livePrice,
-              currency: merchantProduct.currency || "GBP",
-              attributes,
-              imageUrl: "/assets/jacket_original.png",
-              sourceUrl: r.url || merchantProduct.sourceUrl,
-            };
-          });
-
-          return liveCompetitors;
-        }
+        const liveCompetitors = pickLiveCompetitors(searchData.results || [], merchantProduct, schema);
+        if (liveCompetitors.length >= 3) return liveCompetitors;
       }
     } catch (e) {
       // Tavily search failed or timed out, safely fall through to ontology tables
@@ -545,6 +589,29 @@ export async function discoverCompetitors(
         sourceUrl: merchantProduct.sourceUrl,
       },
     ];
+  }
+
+  const outdoorTitle = merchantProduct.title.toLowerCase();
+  if (/trouser|overtrouser|legging|hiking|rain pant/.test(outdoorTitle)) {
+    const outdoor = [
+      ["Regatta Women's Pack-It Overtrousers", "Regatta", "https://www.amazon.co.uk/s?k=Regatta+womens+waterproof+overtrousers"],
+      ["Craghoppers Women's Kiwi Waterproof Trousers", "Craghoppers", "https://www.amazon.co.uk/s?k=Craghoppers+womens+waterproof+trousers"],
+      ["Peter Storm Women's Waterproof Overtrousers", "Peter Storm", "https://www.amazon.co.uk/s?k=Peter+Storm+waterproof+overtrousers"],
+    ] as const;
+    return outdoor.map(([title, brand, sourceUrl], index) => {
+      const price = Math.round(merchantProduct.price * (index === 0 ? 1.08 : index === 1 ? 1.2 : 0.86));
+      return {
+        id: `comp_outdoor_${index}`,
+        title,
+        brand,
+        category: schema.category,
+        price,
+        currency: "GBP",
+        attributes: attributesForPrice(schema, price, index),
+        imageUrl: "",
+        sourceUrl,
+      };
+    });
   }
 
   // Dresses & Casual Apparel Competitors

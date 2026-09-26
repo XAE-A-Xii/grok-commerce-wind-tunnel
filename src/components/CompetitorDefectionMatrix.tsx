@@ -2,11 +2,11 @@
 
 import React from "react";
 import { Swords, CheckCircle2, AlertOctagon, TrendingUp } from "lucide-react";
-import { LostDemandReport, ProductSKU } from "@/types";
+import { LostDemandReport } from "@/types";
 
 interface CompetitorDefectionMatrixProps {
   report: LostDemandReport;
-  competitors: ProductSKU[];
+  competitors: Array<{ id: string; title?: string; price?: number; sourceUrl?: string; url?: string }>;
 }
 
 export const CompetitorDefectionMatrix: React.FC<CompetitorDefectionMatrixProps> = ({
@@ -32,6 +32,7 @@ export const CompetitorDefectionMatrix: React.FC<CompetitorDefectionMatrixProps>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {report.headToHeadDefection.map((comp) => {
           const skuData = competitors.find((c) => c.id === comp.competitorId);
+          const listingUrl = skuData?.sourceUrl || skuData?.url || "";
 
           return (
             <div
@@ -44,8 +45,18 @@ export const CompetitorDefectionMatrix: React.FC<CompetitorDefectionMatrixProps>
                   <div>
                     <h4 className="text-sm font-bold text-white">{comp.competitorName}</h4>
                     <p className="text-xs font-mono text-slate-400 mt-0.5">
-                      RRP: £{skuData ? skuData.price.toFixed(2) : "109.00"}
+                      {typeof skuData?.price === "number" ? `£${skuData.price.toFixed(2)}` : "Price from the swarm market"}
                     </p>
+                    {listingUrl.startsWith("http") && (
+                      <a
+                        href={listingUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-[11px] font-mono text-cyan hover:underline"
+                      >
+                        Open listing
+                      </a>
+                    )}
                   </div>
                   <span className="rounded-lg bg-amber-500/20 px-2 py-1 text-xs font-mono font-bold text-amber-300 border border-amber-500/30">
                     {comp.lostBuyerCount} DEFECTED

@@ -44,7 +44,7 @@ export const UrlInputHero: React.FC<UrlInputHeroProps> = ({
 
         {/* Hero Title */}
         <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white mb-4 leading-tight">
-          Where Did Your <span className="bg-gradient-to-r from-crimson to-amber-400 bg-clip-text text-transparent">Demand Leak</span>?
+          Where Did Your <span className="text-amber-400">Demand Leak</span>?
         </h1>
         <p className="mx-auto max-w-2xl text-slate-400 text-sm sm:text-base leading-relaxed mb-8">
           Paste a public product URL. Grok Bot establishes category decision dimensions, 200 autonomous discovery buyers shop your live market locally, and an adversarial held-out retest proves if product changes reclaim demand.
@@ -120,8 +120,23 @@ export const UrlInputHero: React.FC<UrlInputHeroProps> = ({
           </div>
         )}
 
+        <ol className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-4">
+          {[
+            ["1", "Paste a listing", "We read the title, price, and photo."],
+            ["2", "Find rivals", "Three competing listings, each with a link."],
+            ["3", "Release buyers", "200 shoppers choose you, a rival, or nothing."],
+            ["4", "Retest a change", "A second cohort checks whether the redesign wins them back."],
+          ].map(([step, title, copy]) => (
+            <li key={step} className="rounded-xl border border-white/10 bg-surface/50 p-3">
+              <p className="font-mono text-[11px] text-cyan">{step}</p>
+              <p className="mt-1 text-sm font-semibold text-white">{title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">{copy}</p>
+            </li>
+          ))}
+        </ol>
+
         {/* Extracted Product Badge if available */}
-        {extractedSKU && !errorMessage && (
+        {extractedSKU && commerceProduct && !errorMessage && (
           <div className="mt-6 mx-auto max-w-xl text-left rounded-xl p-3.5 bg-surface/60 border border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center text-xs text-slate-400 font-mono">

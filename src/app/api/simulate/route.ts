@@ -153,6 +153,12 @@ export async function POST(req: NextRequest) {
       report: dynamicResult.report,
       traces: dynamicResult.traces,
       competitors: comps,
+      buyers: discoveryCohort.map((agent) => ({
+        id: agent.id,
+        cohort: agent.cohort,
+        budget: Math.round(agent.budget),
+        maxWTP: Math.round(agent.maxWTP),
+      })),
       categorySchema: schema,
       latencyMs: dynamicResult.latencyMs,
     });
