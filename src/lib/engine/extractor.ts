@@ -1,7 +1,7 @@
 import { ProductSKU, CommerceProduct } from "@/types";
 import { MERCHANT_SKU } from "@/lib/data/seedSKUs";
 import { detectProductCategory } from "./categoryOntology";
-import { amazonAsinFromUrl, isWeakProductTitle, parseProductHtml } from "./productPage";
+import { amazonAsinFromUrl, amazonDesktopUrl, isWeakProductTitle, parseProductHtml } from "./productPage";
 import { recoverProductWithTavily } from "./tavily";
 
 export interface ExtractionResult {
@@ -211,12 +211,13 @@ export async function extractProductFromUrl(url: string): Promise<ExtractionResu
     }
   };
 
-  await readPage(url);
-
   const asin = amazonAsinFromUrl(url);
-  const hostIsAmazon = /amazon\.|amzn\./i.test(url);
-  if (asin && !hostIsAmazon && (isWeakProductTitle(extractedTitle) || extractedPrice == null)) {
-    await readPage(`https://www.amazon.co.uk/dp/${asin}`);
+  const canonical = asin ? amazonDesktopUrl(url, asin) : "";
+  if (canonical) await readPage(canonical);
+  const originalPath = url.split("?")[0].replace(/\/+$/, "");
+  const canonicalPath = canonical.replace(/\/+$/, "");
+  if (!canonical || originalPath !== canonicalPath) {
+    if (isWeakProductTitle(extractedTitle) || extractedPrice == null) await readPage(url);
   }
 
   // Tavily Extract fetches the URL when the storefront blocks a direct read.

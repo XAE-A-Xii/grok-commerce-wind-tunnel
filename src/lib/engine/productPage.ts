@@ -50,6 +50,19 @@ export function isWeakProductTitle(title: string): boolean {
   );
 }
 
+export function amazonDesktopUrl(pageUrl: string, asin: string): string {
+  try {
+    const host = new URL(pageUrl).hostname.toLowerCase();
+    if (host.includes("amazon.") || host.includes("amzn.")) {
+      const normalized = host.startsWith("www.") ? host : `www.${host}`;
+      return `https://${normalized}/dp/${asin}`;
+    }
+  } catch {
+    // Affiliate links still resolve on the UK site.
+  }
+  return `https://www.amazon.co.uk/dp/${asin}`;
+}
+
 export function amazonAsinFromUrl(url: string): string | null {
   const explicit = url.match(/(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|\/product\/)([A-Z0-9]{10})(?:[/?#]|$)/i);
   if (explicit && looksLikeAsin(explicit[1])) return explicit[1].toUpperCase();

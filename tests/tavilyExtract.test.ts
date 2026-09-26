@@ -61,6 +61,31 @@ describe("Tavily page extraction", () => {
     expect(extraction.commerceProduct.imageUrl).toBe("https://cdn.example/boots.jpg");
   });
 
+  it("reads a mobile Amazon link from the desktop product page", async () => {
+    delete process.env.TAVILY_API_KEY;
+    const mobile = "https://www.amazon.co.uk/gp/aw/d/B07G372NH2/?th=1&psc=1";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const href = String(input);
+      if (href === "https://www.amazon.co.uk/dp/B07G372NH2") {
+        return new Response(
+          `<span id="productTitle">DREAM PAIRS Women's High Heel Suede Chelsea Boots</span>
+           <script>{"priceAmount":38.99}</script>
+           <img src="https://m.media-amazon.com/images/I/boot.jpg" data-old-hires="https://m.media-amazon.com/images/I/boot.jpg" />`,
+          { status: 200, headers: { "Content-Type": "text/html" } }
+        );
+      }
+      return new Response("robot check", { status: 503 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const extraction = await extractProductFromUrl(mobile);
+
+    expect(fetchMock.mock.calls.some((call) => String(call[0]) === "https://www.amazon.co.uk/dp/B07G372NH2")).toBe(true);
+    expect(extraction.commerceProduct.title).toBe("DREAM PAIRS Women's High Heel Suede Chelsea Boots");
+    expect(extraction.commerceProduct.price).toBe(38.99);
+    expect(extraction.commerceProduct.imageUrl).toBe("https://m.media-amazon.com/images/I/boot.jpg");
+  });
+
   it("does not treat an HTTP 200 failed_results payload as a fetched product page", async () => {
     process.env.TAVILY_API_KEY = "tvly-test-key";
     vi.stubGlobal(

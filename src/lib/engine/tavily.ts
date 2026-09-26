@@ -74,7 +74,7 @@ async function searchForUrl(url: string, apiKey: string): Promise<TavilyRecovere
     method: "POST",
     headers: tavilyHeaders(apiKey),
     body: JSON.stringify({
-      query: url,
+      query: searchQuery(url),
       search_depth: "basic",
       max_results: 5,
     }),
@@ -100,6 +100,11 @@ async function searchForUrl(url: string, apiKey: string): Promise<TavilyRecovere
   }
 
   return null;
+}
+
+function searchQuery(url: string): string {
+  const asin = url.match(/\/(?:dp|d)\/([A-Z0-9]{10})/i)?.[1];
+  return asin ? `${asin} amazon.co.uk` : url;
 }
 
 function tavilyHeaders(apiKey: string): HeadersInit {
@@ -129,6 +134,9 @@ function isGarbageLine(value: string): boolean {
     lower.includes("robot check") ||
     lower.includes("captcha") ||
     lower.includes("just a moment") ||
-    lower.includes("access denied")
+    lower.includes("access denied") ||
+    lower.includes("batch/1/") ||
+    lower.startsWith("![") ||
+    lower.includes("fls-")
   );
 }
