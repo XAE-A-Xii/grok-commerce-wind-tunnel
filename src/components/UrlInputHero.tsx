@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Search, Sparkles, ArrowRight, ShieldCheck, Tag, AlertCircle } from "lucide-react";
+import { Search, Sparkles, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { ProductSKU, CommerceProduct } from "@/types";
 
 interface UrlInputHeroProps {
@@ -19,18 +19,13 @@ export const UrlInputHero: React.FC<UrlInputHeroProps> = ({
   commerceProduct,
   errorMessage,
 }) => {
-  const [url, setUrl] = useState("https://shop.com/products/black-racing-jacket");
+  const [url, setUrl] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (url.trim()) {
       onStartSimulation(url.trim());
     }
-  };
-
-  const setPreset = (presetUrl: string) => {
-    setUrl(presetUrl);
-    onStartSimulation(presetUrl);
   };
 
   return (
@@ -46,8 +41,11 @@ export const UrlInputHero: React.FC<UrlInputHeroProps> = ({
         <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white mb-4 leading-tight">
           Where Did Your <span className="text-amber-400">Demand Leak</span>?
         </h1>
-        <p className="mx-auto max-w-2xl text-slate-400 text-sm sm:text-base leading-relaxed mb-8">
-          Paste a public product URL. Grok Bot establishes category decision dimensions, 200 autonomous discovery buyers shop your live market locally, and an adversarial held-out retest proves if product changes reclaim demand.
+        <p className="mx-auto max-w-2xl text-slate-400 text-sm sm:text-base leading-relaxed mb-3">
+          Paste a product URL. Grok Bot establishes category decision dimensions, 200 autonomous discovery buyers shop your live market locally, and an adversarial held-out retest proves if product changes reclaim demand.
+        </p>
+        <p className="mx-auto mb-8 max-w-2xl text-sm font-semibold text-amber-400">
+          For the demo, please only try Amazon URLs.
         </p>
 
         {/* Input Form */}
@@ -60,7 +58,7 @@ export const UrlInputHero: React.FC<UrlInputHeroProps> = ({
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste a public product URL..."
+              placeholder="https://www.amazon.co.uk/dp/..."
               disabled={isLoading}
               className="w-full rounded-2xl bg-surface/90 py-4 pl-12 pr-44 text-sm text-slate-100 placeholder-slate-500 border border-surface-border shadow-2xl focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20 transition-all font-mono"
             />
@@ -84,33 +82,9 @@ export const UrlInputHero: React.FC<UrlInputHeroProps> = ({
           </div>
         </form>
 
-        {/* Quick Presets: The 3 Category Milestones */}
-        <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-mono text-slate-400">
-          <span className="text-slate-500 flex items-center gap-1">
-            <Tag className="h-3 w-3" /> Quick Test Presets:
-          </span>
-          <button
-            type="button"
-            onClick={() => setPreset("https://shop.com/products/black-racing-jacket")}
-            className="rounded-lg bg-surface px-2.5 py-1 text-slate-300 hover:text-cyan border border-white/5 hover:border-cyan/30 transition-all"
-          >
-            🧥 Apparel: Racing Jacket (£99)
-          </button>
-          <button
-            type="button"
-            onClick={() => setPreset("https://shop.com/products/nike-air-zoom-pegasus")}
-            className="rounded-lg bg-surface px-2.5 py-1 text-slate-300 hover:text-cyan border border-white/5 hover:border-cyan/30 transition-all"
-          >
-            👟 Footwear: Nike Pegasus (£130)
-          </button>
-          <button
-            type="button"
-            onClick={() => setPreset("https://shop.com/products/sony-wh-1000xm5")}
-            className="rounded-lg bg-surface px-2.5 py-1 text-slate-300 hover:text-cyan border border-white/5 hover:border-cyan/30 transition-all"
-          >
-            🎧 Audio: Sony WH-1000XM5 (£299)
-          </button>
-        </div>
+        <p className="text-xs font-mono text-slate-500">
+          amazon.co.uk or amazon.com product links. A desktop /dp/ link works best.
+        </p>
 
         {/* Error message alert */}
         {errorMessage && (
@@ -122,7 +96,7 @@ export const UrlInputHero: React.FC<UrlInputHeroProps> = ({
 
         <ol className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-4">
           {[
-            ["1", "Paste a listing", "We read the title, price, and photo."],
+            ["1", "Paste an Amazon listing", "We read the title, price, and photo."],
             ["2", "Find rivals", "Three competing listings, each with a link."],
             ["3", "Release buyers", "200 shoppers choose you, a rival, or nothing."],
             ["4", "Retest a change", "A second cohort checks whether the redesign wins them back."],
