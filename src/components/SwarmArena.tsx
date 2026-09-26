@@ -78,7 +78,7 @@ export const SwarmArena: React.FC<SwarmArenaProps> = ({
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Each square is one buyer. Green stayed with you. Other colours left for a rival. Red walked away.
+            Each square is one buyer. Green stayed with you, other colours left for a rival, red bought nothing. Score uses price, plus a spec only when both listings have it.
           </p>
         </div>
 

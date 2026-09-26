@@ -279,40 +279,8 @@ export async function extractProductFromUrl(url: string): Promise<ExtractionResu
   const category = detectProductCategory(extractedTitle, url);
   const finalPrice = extractedPrice || (category === "running_shoes" ? 135 : category === "wireless_headphones" ? 280 : 99);
 
-  let attributes: Record<string, string | number | boolean> = {};
-  if (category === "running_shoes") {
-    attributes = {
-      cushioning: 0.72,
-      stability: 0.58,
-      weight: 285,
-      price: finalPrice,
-      durability: 0.75,
-      style: "performance",
-    };
-  } else if (category === "wireless_headphones") {
-    attributes = {
-      anc: true,
-      battery_hours: 32,
-      comfort_weight: 255,
-      price: finalPrice,
-      sound_profile: 0.82,
-    };
-  } else if (category === "general_commerce") {
-    attributes = {
-      build_quality: 0.7,
-      price: finalPrice,
-      design_aesthetic: 0.66,
-      usability: 0.7,
-    };
-  } else {
-    attributes = {
-      silhouette: "regular_fitted",
-      material_quality: 0.60,
-      colorway: "solid_black",
-      price: finalPrice,
-      hardware_detailing: 0.50,
-    };
-  }
+  // Live listings only carry the price we read. Unknown specs stay a tie in the swarm.
+  const attributes: Record<string, string | number | boolean> = { price: finalPrice };
 
   const commerceProduct: CommerceProduct = {
     id: `sku_${Date.now()}`,

@@ -369,15 +369,8 @@ function priceFromSnippet(text: string, merchantPrice: number, index: number): n
   return Math.round(merchantPrice * factor);
 }
 
-function attributesForPrice(schema: CategorySchema, price: number, index: number): Record<string, string | number | boolean> {
-  const attributes: Record<string, string | number | boolean> = {};
-  schema.decision_dimensions.forEach((dim) => {
-    if (dim.key === "price") attributes.price = price;
-    else if (dim.type === "numeric") attributes[dim.key] = index === 0 ? 0.84 : index === 1 ? 0.74 : 0.66;
-    else if (dim.type === "boolean") attributes[dim.key] = index < 2;
-    else if (dim.options && dim.options.length > 0) attributes[dim.key] = dim.options[index % dim.options.length];
-  });
-  return attributes;
+function attributesForPrice(_schema: CategorySchema, price: number, _index: number): Record<string, string | number | boolean> {
+  return { price };
 }
 
 /**

@@ -335,7 +335,7 @@ export async function runDynamicParallelHeldOutRetest(
     competitors,
     schema,
     heldOutCohort,
-    "held_out_market_b"
+    "held_out_market_a"
   );
 
   const baselineShare = marketAResult.report.merchantChoiceShare;

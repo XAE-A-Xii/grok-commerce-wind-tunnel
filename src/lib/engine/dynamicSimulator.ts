@@ -94,18 +94,22 @@ export function calculateProductUtility(
   let weightedFitSum = 0;
 
   for (const dim of schema.decision_dimensions) {
+    if (dim.key === "price") continue;
+
     const weight = agent.dimensionWeights[dim.key] || dim.importance_mean || 0.5;
     totalWeight += weight;
 
-    const prodVal = product.attributes[dim.key] !== undefined ? product.attributes[dim.key] : (dim.key === "price" ? product.price : undefined);
+    const prodVal = product.attributes[dim.key];
     const idealVal = agent.idealValues[dim.key];
 
     let dimScore = 0.5;
 
-    if (dim.type === "numeric") {
+    if (prodVal === undefined) {
+      dimScore = 0.5;
+    } else if (dim.type === "numeric") {
       dimScore = normalizeDimensionValue(dim.key, prodVal, dim.direction, allProducts);
 
-      // Check if product significantly underperformed on this dimension
+      // A loss is only recorded when this listing actually has the spec.
       if (dimScore < 0.45 && weight > 0.5) {
         dimensionLosses.push({
           dimension: dim.label || dim.key,
@@ -157,10 +161,7 @@ export function calculateProductUtility(
   const noise = (rng() - 0.5) * 0.08;
 
   // 4. Combined Utility
-  const utility = Math.max(
-    0.01,
-    0.50 * attributeFit + 0.42 * priceFit + 0.08 * (agent.brandLoyalty || 0.5) + noise
-  );
+  const utility = Math.max(0.01, 0.55 * attributeFit + 0.45 * priceFit + noise);
 
   return { utility, attributeFit, priceFit, dimensionLosses };
 }
@@ -283,15 +284,22 @@ export function runDynamicSwarmSimulation(
       competitorName: comp.title,
       lostBuyerCount: lostCount,
       whyTheyWon:
-        lostCount > 0
+        lostCount === 0
+          ? ["No buyers left you for this listing"]
+          : comp.price < merchantProduct.price
           ? [
-              `${lostCount} buyers chose this listing instead of yours`,
-              `It is on sale at £${comp.price.toFixed(2)}`,
+              `${lostCount} buyers chose it`,
+              `£${(merchantProduct.price - comp.price).toFixed(2)} cheaper than your £${merchantProduct.price.toFixed(2)}`,
             ]
-          : ["No buyers left you for this listing"],
+          : comp.price > merchantProduct.price
+          ? [
+              `${lostCount} buyers chose it`,
+              `They paid £${(comp.price - merchantProduct.price).toFixed(2)} more than your £${merchantProduct.price.toFixed(2)}`,
+            ]
+          : [`${lostCount} buyers chose it at the same £${comp.price.toFixed(2)} price`],
       whyTheyLost: [
         lostCount > 0
-          ? "Shoppers who stayed were closer to your price or spec"
+          ? "Buyers who stayed with you preferred your price or a spec both listings actually have"
           : "This rival did not take demand in this run",
       ],
     };
