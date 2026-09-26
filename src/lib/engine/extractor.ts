@@ -1,6 +1,7 @@
 import { ProductSKU, CommerceProduct } from "@/types";
 import { MERCHANT_SKU } from "@/lib/data/seedSKUs";
 import { detectProductCategory } from "./categoryOntology";
+import { recoverProductWithTavily } from "./tavily";
 
 export interface ExtractionResult {
   sku: ProductSKU;
@@ -170,56 +171,6 @@ export async function extractProductFromUrl(url: string): Promise<ExtractionResu
   let extractedImage = "";
   let extractionSource: ExtractionResult["source"] = "open_graph";
 
-  // Check if this is an Amazon URL
-  const isAmazonUrl = normalizedUrl.includes("amazon.") || normalizedUrl.includes("amzn.");
-  let amazonAsin = "";
-  if (isAmazonUrl) {
-    const asinMatch = url.match(/(?:\/dp\/|\/d\/|\/product\/|\/gp\/aw\/d\/)([A-Z0-9]{10})/i);
-    if (asinMatch) {
-      amazonAsin = asinMatch[1].toUpperCase();
-    }
-  }
-
-  // If Amazon and Tavily API key is available, query Tavily Search for the ASIN listing
-  if (isAmazonUrl && amazonAsin && process.env.TAVILY_API_KEY) {
-    try {
-      const tavilySearch = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: process.env.TAVILY_API_KEY,
-          query: `amazon UK ASIN ${amazonAsin} product title price`,
-          search_depth: "basic",
-          max_results: 3,
-        }),
-      });
-      if (tavilySearch.ok) {
-        const sData = await tavilySearch.json();
-        const first = sData.results?.[0];
-        if (first && first.title && !isGarbageText(first.title)) {
-          extractedTitle = first.title.replace(/- Amazon\..*$/i, "").replace(/Amazon\..*?:/i, "").trim();
-          extractionSource = "tavily_search";
-          // Try parsing price from content
-          const priceMatch = (first.content || "").match(/[\$£€](\d{2,3}(?:\.\d{2})?)/);
-          if (priceMatch) {
-            extractedPrice = parseFloat(priceMatch[1]);
-          }
-        }
-      }
-    } catch {
-      // Tavily search failed, continue
-    }
-  }
-
-  // Known Amazon ASIN fast-track if Tavily did not find it or direct Amazon fetch blocked
-  if (amazonAsin === "B07G372NH2" && (!extractedTitle || isGarbageText(extractedTitle))) {
-    extractedTitle = "Chunky Block Heel Chelsea Ankle Boots";
-    extractedBrand = "Amazon Fashion";
-    extractedPrice = 39.99;
-    extractedImage = "/assets/jacket_original.png";
-    extractionSource = "grok_normalised";
-  }
-
   if (!extractedTitle) {
     try {
       const controller = new AbortController();
@@ -302,61 +253,66 @@ export async function extractProductFromUrl(url: string): Promise<ExtractionResu
     }
   }
 
-  // 3. Tavily Extract API if key provided and direct fetch was empty
+  // Tavily Extract fetches the URL when the storefront blocks a direct read.
+  // Search is only the fallback when Extract returns failed_results.
   if ((!extractedTitle || isGarbageText(extractedTitle)) && process.env.TAVILY_API_KEY) {
     try {
-      const tavilyRes = await fetch("https://api.tavily.com/extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: process.env.TAVILY_API_KEY,
-          urls: [url],
-        }),
-      });
-      if (tavilyRes.ok) {
-        const tavilyData = await tavilyRes.json();
-        const firstResult = tavilyData.results?.[0];
-        if (firstResult && firstResult.raw_content) {
-          const lines = firstResult.raw_content.split("\n").filter((l: string) => l.trim().length > 5 && !isGarbageText(l));
-          if (lines[0]) {
-            extractedTitle = lines[0];
-            extractionSource = "tavily_extract";
-          }
+      const recovered = await recoverProductWithTavily(url, process.env.TAVILY_API_KEY);
+      if (recovered && !isGarbageText(recovered.title)) {
+        extractedTitle = recovered.title;
+        if (recovered.price != null) extractedPrice = recovered.price;
+        if (recovered.imageUrl && !isGarbageText(recovered.imageUrl)) {
+          extractedImage = recovered.imageUrl;
         }
+        extractionSource = recovered.source;
       }
-    } catch (e) {
-      // Tavily extract failed
+    } catch {
+      // Tavily failed or timed out
     }
   }
 
-  // 4. URL Slug Fallback only if there is a discernible product path
+  // 4. URL Slug Fallback: captures readable product paths (e.g. /Product-Name/dp/ASIN or /products/item-name)
   if (!extractedTitle || isGarbageText(extractedTitle)) {
     try {
       const parsed = new URL(url);
       const segments = parsed.pathname.split("/").filter(Boolean);
-      if (segments.length > 0) {
-        const last = segments[segments.length - 1].replace(/[-_]/g, " ").trim();
-        const isProductPath =
-          parsed.pathname.includes("/product") ||
-          parsed.pathname.includes("/item") ||
-          parsed.pathname.includes("/p/") ||
-          parsed.pathname.includes("/dp/") ||
-          (segments.length >= 2 && last.split(" ").length >= 2);
+      
+      // Amazon structure: /<product-title-slug>/dp/<asin>
+      let candidateSlug = "";
+      const dpIdx = segments.findIndex((s) => s.toLowerCase() === "dp" || s.toLowerCase() === "d");
+      if (dpIdx > 0 && segments[dpIdx - 1]) {
+        candidateSlug = segments[dpIdx - 1];
+      }
 
-        if (isProductPath && last.length >= 4 && !isGarbageText(last)) {
-          extractedTitle = last.charAt(0).toUpperCase() + last.slice(1);
+      // If no dp structure, search for segment with hyphens or underscores
+      if (!candidateSlug && segments.length > 0) {
+        for (let i = segments.length - 1; i >= 0; i--) {
+          const seg = segments[i];
+          if ((seg.includes("-") || seg.includes("_")) && seg.length >= 6) {
+            candidateSlug = seg;
+            break;
+          }
+        }
+        if (!candidateSlug) {
+          candidateSlug = segments[segments.length - 1];
+        }
+      }
+
+      if (candidateSlug) {
+        const cleanName = candidateSlug
+          .replace(/[-_]/g, " ")
+          .trim();
+        if (cleanName.length >= 4 && !isGarbageText(cleanName)) {
+          extractedTitle = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+          const words = cleanName.split(" ").filter(Boolean);
+          if (words.length > 1) {
+            extractedBrand = words[0];
+          }
         }
       }
     } catch {
       // invalid URL
     }
-  }
-
-  // Fallback for general Amazon URLs if ASIN is present
-  if ((!extractedTitle || isGarbageText(extractedTitle)) && amazonAsin) {
-    extractedTitle = `Amazon Marketplace Item (${amazonAsin})`;
-    extractedBrand = "Amazon Marketplace";
-    extractedPrice = extractedPrice || 49.0;
   }
 
   // If extraction failed: fail transparently!

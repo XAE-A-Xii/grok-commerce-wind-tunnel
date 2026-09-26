@@ -207,8 +207,40 @@ Return a JSON object conforming to:
         targetedDriver: topDrivers[2]?.reason || "Usability",
       }
     );
+  } else if (merchantProduct.title.toLowerCase().includes("dress") || merchantProduct.title.toLowerCase().includes("skirt")) {
+    // Casual Day Dress & Fashion Apparel
+    newTitle = `${merchantProduct.title.replace(/Casual|Dress/gi, "").trim()} Breathable Tiered Maxi Dress`;
+    newAttributes.silhouette = "oversized_boxy";
+    newAttributes.material_quality = 0.86;
+    newAttributes.colorway = "distressed_brown";
+    newAttributes.hardware_detailing = 0.72;
+    newPrice = Math.max(18, Math.round(merchantProduct.price * 0.90));
+
+    designChanges.push(
+      {
+        dimension: "Silhouette & Draping",
+        from: "Standard straight cut",
+        to: "Tiered A-Line Relaxed Silhouette with comfort drop",
+        rationale: "Neutralizes fit and sizing tightness complaints logged in buyer rejection traces.",
+        targetedDriver: topDrivers[0]?.reason || "Silhouette & Cut",
+      },
+      {
+        dimension: "Fabric & Tactility",
+        from: "100% Polyester Synthetic",
+        to: "Breathable Washed Cotton & Linen Blend",
+        rationale: "Eliminates synthetic stiffness friction to outperform Zara and ASOS options.",
+        targetedDriver: topDrivers[1]?.reason || "Material Perception",
+      },
+      {
+        dimension: "Pricing & Positioning",
+        from: `£${merchantProduct.price.toFixed(2)}`,
+        to: `£${newPrice.toFixed(2)}`,
+        rationale: "Optimizes price-to-fabric ratio to undercut high-street alternatives.",
+        targetedDriver: topDrivers[2]?.reason || "Price",
+      }
+    );
   } else {
-    // Outerwear / Apparel / Jackets
+    // Outerwear / Leather & Jackets
     newTitle = "Brown Oversized Vintage Motorsport Jacket";
     newAttributes.silhouette = "oversized_boxy";
     newAttributes.material_quality = 0.86;

@@ -232,7 +232,14 @@ export function detectProductCategory(title: string, url: string = ""): string {
     text.includes("outerwear") ||
     text.includes("racer") ||
     text.includes("leather") ||
-    text.includes("hoodie")
+    text.includes("hoodie") ||
+    text.includes("dress") ||
+    text.includes("shirt") ||
+    text.includes("top") ||
+    text.includes("pants") ||
+    text.includes("skirt") ||
+    text.includes("apparel") ||
+    text.includes("clothing")
   ) {
     return "outerwear";
   }
@@ -537,7 +544,65 @@ export async function discoverCompetitors(
     ];
   }
 
-  // Outerwear / Apparel Competitors
+  // Dresses & Casual Apparel Competitors
+  const isDress = merchantProduct.title.toLowerCase().includes("dress") || merchantProduct.title.toLowerCase().includes("skirt");
+  if (isDress) {
+    return [
+      {
+        id: "comp_dress_zara",
+        title: "Zara Flowing Casual Day Dress",
+        brand: "Zara",
+        category: "outerwear",
+        price: 39,
+        currency: "GBP",
+        attributes: {
+          silhouette: "oversized_boxy",
+          material_quality: 0.84,
+          colorway: "solid_black",
+          price: 39,
+          hardware_detailing: 0.70,
+        },
+        imageUrl: "/assets/jacket_original.png",
+        sourceUrl: "https://zara.com/products/flowing-dress",
+      },
+      {
+        id: "comp_dress_asos",
+        title: "ASOS Design Relaxed Fit Day Dress",
+        brand: "ASOS Design",
+        category: "outerwear",
+        price: 34,
+        currency: "GBP",
+        attributes: {
+          silhouette: "oversized_boxy",
+          material_quality: 0.78,
+          colorway: "distressed_brown",
+          price: 34,
+          hardware_detailing: 0.65,
+        },
+        imageUrl: "/assets/jacket_original.png",
+        sourceUrl: "https://asos.com/products/relaxed-dress",
+      },
+      {
+        id: "comp_dress_mango",
+        title: "Mango Breathable Cotton Blend Dress",
+        brand: "Mango",
+        category: "outerwear",
+        price: 45,
+        currency: "GBP",
+        attributes: {
+          silhouette: "regular_fitted",
+          material_quality: 0.88,
+          colorway: "solid_black",
+          price: 45,
+          hardware_detailing: 0.80,
+        },
+        imageUrl: "/assets/jacket_original.png",
+        sourceUrl: "https://mango.com/products/cotton-dress",
+      },
+    ];
+  }
+
+  // Outerwear / Leather & Jackets Competitors
   return [
     {
       id: "comp_moto_a",

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractProductFromUrl } from "@/lib/engine/extractor";
 import { getCategorySchema, discoverCompetitors } from "@/lib/engine/categoryOntology";
 
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
