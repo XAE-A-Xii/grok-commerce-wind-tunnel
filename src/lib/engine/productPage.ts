@@ -168,7 +168,9 @@ function metaContent(html: string, key: string): string {
   const tags = html.match(/<meta\b[^>]*>/gi) || [];
   for (const tag of tags) {
     const attrs: Record<string, string> = {};
-    for (const match of tag.matchAll(/([\w:-]+)\s*=\s*["']([^"']*)["']/gi)) {
+    const attrPattern = /([\w:-]+)\s*=\s*["']([^"']*)["']/gi;
+    let match: RegExpExecArray | null;
+    while ((match = attrPattern.exec(tag)) !== null) {
       attrs[match[1].toLowerCase()] = decode(match[2]);
     }
     const id = (attrs.property || attrs.name || "").toLowerCase();
