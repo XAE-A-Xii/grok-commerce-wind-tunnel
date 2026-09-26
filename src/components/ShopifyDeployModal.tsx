@@ -120,16 +120,32 @@ export const ShopifyDeployModal: React.FC<ShopifyDeployModalProps> = ({
               </div>
             </div>
 
+            <div className="rounded-lg bg-emerald-950/40 p-3 border border-emerald-500/20 text-[11px] text-emerald-300 font-mono flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Wassist WhatsApp Agent: Ready to deploy</span>
+              </div>
+              <span className="text-[10px] text-emerald-400/80 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">WASSIST SYNC</span>
+            </div>
+
             <div className="flex items-center gap-3 pt-2">
               <a
                 href={deployedRecord.shopify_draft_url || "#"}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 text-xs font-bold text-slate-950 shadow-lg shadow-emerald-500/25 hover:from-emerald-400 hover:to-teal-300 transition-all font-mono"
+                className="w-1/2 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 text-xs font-bold text-slate-950 shadow-lg shadow-emerald-500/25 hover:from-emerald-400 hover:to-teal-300 transition-all font-mono"
               >
-                <span>OPEN IN SHOPIFY ADMIN</span>
+                <span>SHOPIFY ADMIN</span>
                 <ExternalLink className="h-4 w-4" />
               </a>
+              <button
+                type="button"
+                onClick={() => alert(`Wassist WhatsApp Ambassador Activated!\n\nSKU ${title} (£${price.toFixed(2)}) is now synced to Wassist. Customers asking about sizing, materials, or pricing on WhatsApp will receive automated brand-aligned conversion guidance.`)}
+                className="w-1/2 inline-flex items-center justify-center gap-2 rounded-xl bg-surface border border-emerald-500/30 py-3 text-xs font-bold text-emerald-300 hover:bg-emerald-500/10 transition-all font-mono"
+              >
+                <span>WASSIST AGENT</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
         ) : (
@@ -200,6 +216,17 @@ export const ShopifyDeployModal: React.FC<ShopifyDeployModalProps> = ({
                 <span className="text-base font-black font-mono text-emerald-400">
                   {grossMargin}%
                 </span>
+              </div>
+            </div>
+
+            {/* Wassist WhatsApp Ambassador Callout */}
+            <div className="rounded-xl bg-emerald-950/20 border border-emerald-500/20 p-3 flex items-start gap-2.5">
+              <span className="p-1 rounded bg-emerald-500/20 text-emerald-400 mt-0.5">💬</span>
+              <div>
+                <span className="text-xs font-bold text-emerald-300 font-mono">WASSIST WHATSAPP AMBASSADOR SYNC</span>
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed font-mono">
+                  Automatically syncs Grok’s validated design & evidence traces to your brand’s Wassist agent to answer buyer objections and close sales inside WhatsApp.
+                </p>
               </div>
             </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Sparkles, ArrowRight, Check, DollarSign, Percent, Box } from "lucide-react";
+import { Sparkles, ArrowRight, CheckCircle2, ShieldCheck, DollarSign, Percent, Box } from "lucide-react";
 import { ProductSKU } from "@/types";
 import { GrokRedesignProposal } from "@/lib/engine/grokRedesign";
 
@@ -10,6 +10,7 @@ interface GrokRedesignCardProps {
   proposal: GrokRedesignProposal;
   onRunParallelValidation: () => void;
   isValidating: boolean;
+  sourceLabel?: string;
 }
 
 export const GrokRedesignCard: React.FC<GrokRedesignCardProps> = ({
@@ -17,6 +18,7 @@ export const GrokRedesignCard: React.FC<GrokRedesignCardProps> = ({
   proposal,
   onRunParallelValidation,
   isValidating,
+  sourceLabel,
 }) => {
   return (
     <div className="glass-panel rounded-2xl p-6 border border-cyan/30 shadow-2xl glow-cyan mb-8">
@@ -28,10 +30,10 @@ export const GrokRedesignCard: React.FC<GrokRedesignCardProps> = ({
               <Sparkles className="h-4 w-4" />
             </span>
             <h3 className="text-base font-bold text-white uppercase tracking-wider font-mono">
-              STAGE 4: GROK COUNTERFACTUAL REDESIGN (VARIANT B)
+              STAGE 4: GROK BOT — AUTONOMOUS PRODUCT STRATEGIST
             </h3>
             <span className="rounded bg-cyan/10 px-2 py-0.5 text-[10px] font-mono font-bold text-cyan border border-cyan/20">
-              xAI GROK-4.7
+              {sourceLabel || "GROK BOT TEAMMATE"}
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">{proposal.executiveSummary}</p>
@@ -50,14 +52,38 @@ export const GrokRedesignCard: React.FC<GrokRedesignCardProps> = ({
             </>
           ) : (
             <>
-              <span>RUN HELD-OUT MARKET TEST</span>
+              <span>TEST WITH HELD-OUT SWARM</span>
               <ArrowRight className="h-4 w-4" />
             </>
           )}
         </button>
       </div>
 
-      {/* Side-by-side SKU Comparison */}
+      {/* Grok Bot Autonomous Task Checklist */}
+      <div className="my-4 p-3 rounded-xl bg-black/40 border border-white/5 grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] font-mono text-slate-300">
+        <div className="flex items-center gap-1.5 text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>Analysed Traces</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>Compared Competitors</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>Investigated Losses</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>Checked Price Limits</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-cyan">
+          <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>Formulated Counterfactual</span>
+        </div>
+      </div>
+
+      {/* Side-by-side SKU Comparison: CURRENT vs PROPOSED */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 my-6">
         {/* Original SKU */}
         <div className="rounded-xl bg-black/40 border border-white/5 p-5">
@@ -69,20 +95,20 @@ export const GrokRedesignCard: React.FC<GrokRedesignCardProps> = ({
             <span className="text-2xl font-black font-mono text-slate-300">
               £{originalSKU.price.toFixed(2)}
             </span>
-            <span className="text-xs font-mono text-slate-500">+ £4.99 shipping</span>
+            <span className="text-xs font-mono text-slate-500">+ standard delivery</span>
           </div>
 
           <div className="mt-4 space-y-2 text-xs font-mono text-slate-400">
             <div className="flex justify-between py-1 border-b border-white/5">
-              <span>Silhouette:</span>
+              <span>Silhouette / Cut:</span>
               <span className="text-slate-300 font-semibold">{originalSKU.silhouette}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-white/5">
-              <span>Material:</span>
+              <span>Material / Spec:</span>
               <span className="text-slate-300 font-semibold">{originalSKU.material}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-white/5">
-              <span>Colorway:</span>
+              <span>Colorway / Theme:</span>
               <span className="text-slate-300 font-semibold">{originalSKU.colorway}</span>
             </div>
           </div>
@@ -92,7 +118,7 @@ export const GrokRedesignCard: React.FC<GrokRedesignCardProps> = ({
         <div className="rounded-xl bg-gradient-to-br from-cyan/10 to-emerald-500/10 border border-cyan/40 p-5 relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-mono text-cyan font-bold uppercase tracking-wider">
-              GROK COUNTERFACTUAL SPEC (VARIANT B)
+              GROK PROPOSED COUNTERFACTUAL (VARIANT B)
             </span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold">
               OPTIMIZED VALUE WEDGE
@@ -107,7 +133,7 @@ export const GrokRedesignCard: React.FC<GrokRedesignCardProps> = ({
             <span className="text-2xl font-black font-mono text-emerald-400">
               £{proposal.redesignedSKU.price.toFixed(2)}
             </span>
-            <span className="text-xs font-mono text-emerald-300">Free Next-Day Delivery</span>
+            <span className="text-xs font-mono text-emerald-300">Free Next-Day Delivery Included</span>
           </div>
 
           {/* Unit Economics Bar */}
@@ -131,7 +157,7 @@ export const GrokRedesignCard: React.FC<GrokRedesignCardProps> = ({
       {/* Explicit Driver Mapping Table */}
       <div className="mt-4">
         <h5 className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider mb-3">
-          HOW EACH CHANGE DIRECTLY NEUTRALIZES A REJECTION DRIVER:
+          HOW EACH CHANGE DIRECTLY NEUTRALIZES AN EMPIRICAL REJECTION DRIVER:
         </h5>
         <div className="space-y-2">
           {proposal.designChanges.map((change, i) => (
